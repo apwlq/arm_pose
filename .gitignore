@@ -1,0 +1,4 @@
+.venv
+arm_pose.spec
+build/
+dist/
