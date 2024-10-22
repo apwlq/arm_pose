@@ -67,13 +67,14 @@ def check_hand_position(landmarks):
     # 손목과 팔꿈치의 Y 좌표 차이
     y_diff = wrist.y - elbow.y
 
-    # 손이 팔꿈치보다 위에 있으면 up, 아래면 down, 중간이면 neutral
-    if y_diff < -NEUTRAL_THRESHOLD:
-        return "up"
-    elif y_diff > NEUTRAL_THRESHOLD:
-        return "down"
-    else:
-        return "neutral"
+    # y_diff 값을 0~254로 매핑하기
+    # y_diff의 값이 -0.5 ~ 0.5라고 가정하고, 이를 0 ~ 254로 변환
+    mapped_value = int(((y_diff + 0.5) / 1.0) * 254)
+
+    # 값이 0 미만이면 0, 254 초과이면 254로 클램핑
+    mapped_value = max(0, min(254, mapped_value))
+
+    return mapped_value
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -98,19 +99,14 @@ while cap.isOpened():
         )
 
         # 손과 팔꿈치 위치 확인 (오른손)
-        position = check_hand_position(results.pose_landmarks.landmark)
+        analog_value = check_hand_position(results.pose_landmarks.landmark)
 
-        # 아두이노로 명령어 전송 (아두이노가 연결된 경우에만)
+        # 아두이노로 아날로그 값 전송 (아두이노가 연결된 경우에만)
         if arduino:
-            if position == "up":
-                arduino.write(b'U')  # up 명령어 전송
-            elif position == "down":
-                arduino.write(b'D')  # down 명령어 전송
-            else:
-                arduino.write(b'N')  # neutral 명령어 전송
+            arduino.write(bytes([analog_value]))  # 0~254 범위의 값을 전송
 
         # 텍스트 표시
-        cv2.putText(image, position, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(image, f"Analog Value: {analog_value}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
         cv2.putText(image, "exit: q", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
     # 화면에 이미지 출력
